@@ -5,8 +5,11 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 
@@ -17,30 +20,58 @@ import (
 func main() {
 	// Start overall timer
 	overallStart := time.Now()
+	var envs envFlag
 
-	// Parse command-line flag
-	path := flag.String("p", "", "Specify the path")
+	path := flag.String("p", "", "Specify the path of the local repo to scan.")
+	url := flag.String("h", "", "Specify the host url.")
+	flag.Var(&envs, "e", "Specify environment variable names. Can be used multiple times.")
+
+	// Parse flags
 	flag.Parse()
-	if *path == "" {
+
+	// Validate required flags
+	if *path == "" || *url == "" {
 		flag.Usage()
 		os.Exit(1)
 	}
 
-	// Get list of files
+	host, llmUrl, err := formatHost(*url)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	// Retrieve environment variable values
+	headers := make(map[string]string)
+	for _, envVar := range envs {
+		value := os.Getenv(envVar)
+		if value == "" {
+			log.Fatalf("Environment variable %s is not set.", envVar)
+		}
+		headers[strings.ReplaceAll(envVar, "_", "-")] = value
+	}
+
+	for key, value := range headers {
+		log.Printf("%s, %s", key, value)
+	}
+
 	files, err := getFiles(path)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	// Initialize LLM
-	llm, err := openai.New()
-	// llm, err = ollama.New(
-	// 	ollama.WithModel("deepseek-r1:8b"),
-	// 	ollama.WithServerURL("http://localhost:11434"),
-	// )
+	// Configure the OpenAI client to use the ELI endpoint
+	// Set up the OpenAI-compatible LLM with custom endpoint and HTTP client
+	client := newCustomClient(host, headers)
+	llm, err := openai.New(
+		openai.WithBaseURL(llmUrl),
+		openai.WithModel("Mistral-24b"),
+		openai.WithHTTPClient(client),
+	)
 	if err != nil {
-		log.Fatal(err)
+		panic(err)
 	}
+
 	ctx := context.Background()
 
 	// Sync group and results channel
@@ -59,7 +90,7 @@ func main() {
 			start := time.Now()
 
 			fileData := readFile(file)
-			prompt := fmt.Sprintf("You are a security expert. Analyze the following file for sensitive data lie pwd, apikeys, etc.\nif you find anything respsned with either [found , none]\n\n%s", fileData)
+			prompt := fmt.Sprintf("You are a security expert. Analyze the following file for sensitive data lie pwd, apikeys, etc.\nif you find anything respsned with either: found: {description of the issue} or none.\n\n%s", fileData)
 
 			// Generate response
 			response, err := llms.GenerateFromSinglePrompt(ctx, llm, prompt)
@@ -104,7 +135,7 @@ func getFiles(rootPath *string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() {
+		if !info.IsDir() && strings.Contains(path, "go") {
 			files = append(files, path)
 		}
 		return nil
@@ -124,4 +155,70 @@ func readFile(path string) string {
 		return ""
 	}
 	return string(dat)
+}
+
+// newCustomClient creates an HTTP client with custom headers.
+func newCustomClient(host string, headers map[string]string) *http.Client {
+	return &http.Client{
+		Transport: &customTransport{
+			headers: headers,
+			host:    host,
+			rt:      http.DefaultTransport,
+		},
+	}
+}
+
+type customTransport struct {
+	host    string
+	headers map[string]string
+	rt      http.RoundTripper
+}
+
+func (c *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	for key, value := range c.headers {
+		req.Header.Set(key, value)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("User-Agent", "LangChainGo/1.0")
+
+	// Fix: remove default OpenAI "application/x-www-form-urlencoded"
+	req.Header.Del("Content-Type")
+
+	// Fix: override Host header if required (optional)
+	req.Host = c.host
+
+	return c.rt.RoundTrip(req)
+}
+
+// envFlag is a custom flag type to collect environment variables.
+type envFlag []string
+
+// String returns the string representation of the environment variable names.
+func (e *envFlag) String() string {
+	return strings.Join(*e, ", ")
+}
+
+// Set appends a new environment variable name to the slice.
+func (e *envFlag) Set(value string) error {
+	*e = append(*e, value)
+	return nil
+}
+
+func formatHost(userURL string) (string, string, error) {
+	// Ensure the URL has a scheme; default to "https" if missing
+	if !strings.HasPrefix(userURL, "http://") && !strings.HasPrefix(userURL, "https://") {
+		userURL = "https://" + userURL
+	}
+
+	parsedURL, err := url.Parse(userURL)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse URL: %w", err)
+	}
+
+	host := parsedURL.Hostname()
+	llmURL := fmt.Sprintf("https://%s/api/openai/v1", host)
+
+	return host, llmURL, nil
 }
