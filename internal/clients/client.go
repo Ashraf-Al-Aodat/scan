@@ -51,5 +51,11 @@ func (c *customTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("User-Agent", "Scan/0.1")
 
+	// Fix: remove default OpenAI "application/x-www-form-urlencoded"
+	//req.Header.Del("Content-Type")
+
+	// Fix: override Host header if required (optional)
+	// req.Host = c.host
+
 	return c.rt.RoundTrip(req)
 }
