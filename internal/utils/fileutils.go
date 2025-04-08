@@ -19,7 +19,7 @@ func GetFiles(rootPath string) ([]string, error) {
 		if err != nil {
 			return err
 		}
-		if !info.IsDir() && !strings.HasPrefix(path, ".git") {
+		if !info.IsDir() && !strings.HasPrefix(path, ".git") && len(files) < 1 {
 			files = append(files, path)
 		}
 		return nil

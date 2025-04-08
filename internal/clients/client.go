@@ -2,7 +2,9 @@ package clients
 
 import (
 	"context"
+	"fmt"
 	"net/http"
+	"scan/internal/prompts"
 
 	"github.com/tmc/langchaingo/llms"
 	"github.com/tmc/langchaingo/llms/openai"
@@ -34,7 +36,24 @@ func NewClient(host, model string, headers map[string]string) *Client {
 
 // GenerateResponse generates a response from the LLM based on the given prompt.
 func (c *Client) GenerateResponse(ctx context.Context, prompt string) (string, error) {
-	return llms.GenerateFromSinglePrompt(ctx, c.llm, prompt)
+	messageHistory := []llms.MessageContent{
+		llms.TextParts(llms.ChatMessageTypeHuman, prompt),
+	}
+
+	resp, err := c.llm.GenerateContent(ctx, messageHistory, prompts.Tools())
+	if err != nil {
+		return "", err
+	}
+
+	messageHistory = prompts.UpdateMessageHistory(messageHistory, resp)
+
+	// Execute tool calls requested by the model
+	messageHistory = prompts.ExecuteToolCalls(ctx, c.llm, messageHistory, resp)
+	// Assert part is a ToolCallResponse
+	if toolResp, ok := messageHistory[len(messageHistory)-1].Parts[0].(llms.ToolCallResponse); ok {
+		return fmt.Sprint(toolResp.Content), nil
+	}
+	return "", err
 }
 
 type customTransport struct {

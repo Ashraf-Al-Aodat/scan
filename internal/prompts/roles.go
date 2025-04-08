@@ -1,4 +1,4 @@
-package prompt
+package prompts
 
 import (
 	"fmt"
@@ -25,7 +25,7 @@ type promptConfig struct {
 }
 
 // Default YAML file path.
-const yamlFilePath = "internal/prompt/prompts.yaml"
+const yamlFilePath = "internal/prompts/prompts.yaml"
 
 // readPrompt reads the prompt configuration from the YAML file and returns a promptConfig struct.
 func readPrompt() (*promptConfig, error) {
@@ -56,20 +56,5 @@ func GetSystemRole(role string) (string, error) {
 		return config.Role.Review, nil
 	default:
 		return "", fmt.Errorf("role %s not found in configuration", role)
-	}
-}
-
-// GetFunctionDefinition retrieves the definition of a specific function.
-func GetFunctionDefinition(functionName string) (string, error) {
-	config, err := readPrompt()
-	if err != nil {
-		return "", err
-	}
-
-	switch functionName {
-	case "check":
-		return config.Functions.Check, nil
-	default:
-		return "", fmt.Errorf("function %s not found in configuration", functionName)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"scan/internal/clients"
-	"scan/internal/prompt"
+	"scan/internal/prompts"
 	"scan/internal/utils"
 )
 
@@ -33,9 +33,9 @@ func PerformAnalysis(client *clients.Client, files []string) {
 			}
 
 			// Step 2: Load role prompt
-			systemRole, err := prompt.GetSystemRole("security")
+			systemRole, err := prompts.GetSystemRole("security")
 			if err != nil {
-				results <- fmt.Sprintf("Failed to load role prompt for %s: %v", file, err)
+				results <- fmt.Sprintf("Failed to load role prompt for %s: %v\n", file, err)
 				return
 			}
 
@@ -43,12 +43,12 @@ func PerformAnalysis(client *clients.Client, files []string) {
 			prompt := fmt.Sprintf(systemRole, fileData)
 			response, err := client.GenerateResponse(ctx, prompt)
 			if err != nil {
-				results <- fmt.Sprintf("Failed to generate LLM response for %s: %v", file, err)
+				results <- fmt.Sprintf("Failed to generate LLM response for %s: %v\n", file, err)
 				return
 			}
 
 			duration := time.Since(start)
-			results <- fmt.Sprintf("Analysis for %s (Time taken: %v):\n%s\n", file, duration, response)
+			results <- fmt.Sprintf("Analysis for %s (Time taken: %v): %s\n", file, duration, response)
 		}(file)
 	}
 

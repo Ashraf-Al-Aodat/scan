@@ -1,0 +1,20 @@
+role:
+  security: > 
+    You are a security expert. Analyze the following file for sensitive data like passwords, API keys, etc. If you find anything, respond with either leak or safe.
+  review: >
+    You etc etc.
+
+functions:
+  check: check(flag string)
+  description: 
+  parameters: 
+    type: string
+    properties:
+      flag:
+        type: string
+        description: a flag that indecate if the code has a secitry varabilteies.
+        enum:
+          - found
+          - none
+    required:
+      - flag

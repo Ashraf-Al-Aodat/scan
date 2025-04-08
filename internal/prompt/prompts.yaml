@@ -1,9 +1,0 @@
-role:
-  security: > 
-    You are a security expert. Analyze the following file for sensitive data like passwords, API keys, etc. If you find anything, respond with either found or none.
-  review: >
-    You etc etc.
-
-functions:
-  check: >
-    check(found string)
