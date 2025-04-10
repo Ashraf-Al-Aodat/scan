@@ -85,7 +85,6 @@ const (
 )
 
 // +llmfunc: a tool used to flag a file if it has any sensitive data like passwords, API keys, etc.
-// +param:path:description: the path for the file to flag
 // +param:flag:description: the flag, enum:[0,1]
 func flagFile(flag int) string {
 	switch flag {
