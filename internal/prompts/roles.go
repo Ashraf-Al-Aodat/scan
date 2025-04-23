@@ -13,15 +13,9 @@ type Role struct {
 	Review   string `yaml:"review"`
 }
 
-// Functions contains various function definitions.
-type Functions struct {
-	Check string `yaml:"check"`
-}
-
 // promptConfig represents the entire YAML configuration.
 type promptConfig struct {
-	Role      Role      `yaml:"role"`
-	Functions Functions `yaml:"functions"`
+	Role Role `yaml:"role"`
 }
 
 // Default YAML file path.

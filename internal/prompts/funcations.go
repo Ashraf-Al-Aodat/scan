@@ -54,29 +54,35 @@ func ExecuteToolCalls(ctx context.Context, llm llms.Model, messageHistory []llms
 	return messageHistory
 }
 
-func Tools() llms.CallOption {
-	// availableTools simulates the tools/functions we're making available for the model.
-	var availableTools = []llms.Tool{
-		{
-			Type: "function",
-			Function: &llms.FunctionDefinition{
-				Name:        "flagFile",
-				Description: "flag a file if it has any sensitive data like passwords, API keys, etc",
-				Parameters: map[string]any{
-					"type": "object",
-					"properties": map[string]any{
-						"flag": map[string]any{
-							"type":        "integer",
-							"enum":        []int{0, 1},
-							"description": "0 means the file is safe, 1: means the file has some sensitive data",
-						},
+const (
+	Flag = iota
+	Description
+)
+
+// availableTools simulates the tools/functions we're making available for the model.
+var availableTools = map[int8]llms.Tool{
+	Flag: {
+		Type: "function",
+		Function: &llms.FunctionDefinition{
+			Name:        "flagFile",
+			Description: "flag a file if it has any sensitive data like passwords, API keys, etc",
+			Parameters: map[string]any{
+				"type": "object",
+				"properties": map[string]any{
+					"flag": map[string]any{
+						"type":        "integer",
+						"enum":        []int{0, 1},
+						"description": "0: means the file is safe, 1: means the file has some sensitive data",
 					},
-					"required": []string{"flag"},
 				},
+				"required": []string{"flag"},
 			},
 		},
-	}
-	return llms.WithTools(availableTools)
+	},
+}
+
+func Tools(tool int8) llms.CallOption {
+	return llms.WithTools([]llms.Tool{availableTools[tool]})
 }
 
 const (

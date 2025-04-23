@@ -40,7 +40,7 @@ func (c *Client) GenerateResponse(ctx context.Context, prompt string) (string, e
 		llms.TextParts(llms.ChatMessageTypeHuman, prompt),
 	}
 
-	resp, err := c.llm.GenerateContent(ctx, messageHistory, prompts.Tools())
+	resp, err := c.llm.GenerateContent(ctx, messageHistory, prompts.Tools(prompts.Flag))
 	if err != nil {
 		return "", err
 	}
